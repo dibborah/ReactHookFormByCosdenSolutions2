@@ -1,58 +1,73 @@
 // Create a Simple Form in React
+import { zodResolver } from "@hookform/resolvers/zod";
+import { SubmitHandler, useForm } from "react-hook-form";
+import { z } from "zod";
 
-import { useState } from "react"
+const schema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+})
 
+type FormFields = z.infer<typeof schema>
 
 const App = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{email: string, password: string}>({
-    email: "",
-    password: ""
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting }
+  } = useForm<FormFields>({
+    defaultValues: {
+      email: "demo@email.com",
+    },
+    resolver: zodResolver(schema)// resolvers are very important to put
   });
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({email: '', password: ''});
 
-    if(!email.includes('@')) {
-      setErrors({...errors, email: 'The email must include @'});
-      return;
+  // r-h-f makes handling asynchronous fcs really really simple
+  // isSubmitting => a boolean values which becomes true when the form is submitting
+
+  //SubmitHandler is from r-h-f
+  const onSubmit: SubmitHandler<FormFields> = async (data) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(data);
+      throw new Error();
+    } catch (error) {
+      setError("root", {// To handle asynchronous Error (BE) which doesnot necessarily belongs to an input
+        message: "This email is already taken"
+      });
     }
-    if(password.length < 8){
-      setErrors({...errors, password: "The length of password must be greater than 8"});
-      return;
-    }
-    // Form Submited
-    console.log("Form is submitted");
   }
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit(onSubmit)}>
       <div>
         <input
+          // Now the input field || fields are registered with the react-hook-form and email useState and so  will be controlled by r-h-f
+          {...register("email")}
           type="text"
           placeholder="Enter Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
         />
+        {errors.email && (
+          <div style={{ color: "red" }}>{errors.email.message}</div>
+        )}
       </div>
-      {errors.email && (
-        <div style={{color: "red"}}> {errors.email}</div>
-      )}
       <div>
         <input
+          {...register("password")}// Now what ever input we type will be directly sent to r-h-f to manage the inputs along with the password useState
           type="password"
           placeholder="Enter Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
         />
+        {errors.password && <div style={{ color: "red" }}>{errors.password.message}</div>}
       </div>
-      {errors.password && (
-        <div style={{color: "red"}}> {errors.password}</div>
+      <button disabled={isSubmitting} type="submit">
+        {isSubmitting ? "Loading..." : "Submit"}
+      </button>
+      {errors.root && (
+        <div style={{ color: "red" }}>{errors.root.message}</div>
       )}
-      <button type="submit">Submit</button>
     </form>
   )
 }
 
-export default App
+export default App;
